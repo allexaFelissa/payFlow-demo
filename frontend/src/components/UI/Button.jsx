@@ -1,0 +1,1 @@
+export default function Button({className='',...props}){return <button className={`ui-button rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${className}`} {...props}/>}

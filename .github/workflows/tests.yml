@@ -1,0 +1,113 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - '*.x'
+  pull_request:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: neon-testing-${{ github.repository }}
+      cancel-in-progress: false
+
+    env:
+      DB_CONNECTION: pgsql_testing
+      TEST_DB_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
+      TEST_DB_ISOLATED: "true"
+
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        php: [8.2, 8.3, 8.4]
+
+    name: PHP ${{ matrix.php }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pgsql, pdo_pgsql
+          coverage: none
+
+      - name: Install Composer dependencies
+        working-directory: backend
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Copy environment file
+        working-directory: backend
+        run: cp .env.example .env
+
+      - name: Generate app key
+        working-directory: backend
+        run: php artisan key:generate
+
+      - name: Execute tests
+        working-directory: backend
+        run: php artisan test
+
+      - name: Verify production caches
+        if: matrix.php == '8.3'
+        working-directory: backend
+        env:
+          APP_ENV: production
+          APP_DEBUG: "false"
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+          DB_CONNECTION: pgsql
+        run: php artisan optimize
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Prepare non-secret Compose environment
+        run: cp backend/.env.production.example backend/.env
+
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+
+      - name: Build production application
+        run: docker compose build app

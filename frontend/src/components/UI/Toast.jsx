@@ -1,0 +1,1 @@
+export default function Toast({ message, type = 'success' }) { return message ? <div className={`fixed bottom-5 right-5 rounded-lg px-4 py-3 text-sm text-white shadow ${type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{message}</div> : null; }

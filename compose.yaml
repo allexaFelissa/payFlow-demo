@@ -1,0 +1,28 @@
+name: payflow-hr
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: info
+      DB_CONNECTION: pgsql
+      DB_SSLMODE: require
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      SESSION_SECURE_COOKIE: "true"
+      SESSION_HTTP_ONLY: "true"
+      SESSION_SAME_SITE: lax
+      QUEUE_CONNECTION: sync
+      FILESYSTEM_DISK: local
+      BROADCAST_CONNECTION: log
+    ports:
+      - "127.0.0.1:8000:80"
+    stop_grace_period: 30s
